@@ -1,0 +1,40 @@
+{
+  "project_info": {
+    "project_number": "548745855239",
+    "firebase_url": "https://connectfourpontus-default-rtdb.europe-west1.firebasedatabase.app",
+    "project_id": "connectfourpontus",
+    "storage_bucket": "connectfourpontus.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:548745855239:android:1fdf0b53a81b807db8c5a2",
+        "android_client_info": {
+          "package_name": "com.DefaultCompany.MobileGame"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "548745855239-m1f0pihar5c1o3jtq4odgeohjbp95f3q.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDzZ0EjOWRpfPLcQyTHFEzV6yvay5R8u5c"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "548745855239-m1f0pihar5c1o3jtq4odgeohjbp95f3q.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

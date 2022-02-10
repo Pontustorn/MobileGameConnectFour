@@ -1,0 +1,23 @@
+fileFormatVersion: 2
+guid: fef49e6c02f29c640862e4957fa158c9
+TrueTypeFontImporter:
+  externalObjects: {}
+  serializedVersion: 4
+  fontSize: 16
+  forceTextureCase: -2
+  characterSpacing: 0
+  characterPadding: 1
+  includeFontData: 1
+  fontNames:
+  - Hansief
+  fallbackFontReferences:
+  - {fileID: 12800000, guid: 0306c26df7d615c4e89e4f6a2704792f, type: 3}
+  - {fileID: 12800000, guid: ed12d16fe35b5c24d83f542b1d67f1ba, type: 3}
+  customCharacters: 
+  fontRenderingMode: 0
+  ascentCalculationMode: 1
+  useLegacyBoundsCalculation: 0
+  shouldRoundAdvanceValue: 1
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

@@ -1,0 +1,11 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources xmlns:tools="http://schemas.android.com/tools" tools:keep="@string/firebase_database_url,@string/gcm_defaultSenderId,@string/google_storage_bucket,@string/project_id,@string/google_api_key,@string/google_crash_reporting_api_key,@string/google_app_id,@string/default_web_client_id">
+  <string name="firebase_database_url" translatable="false">https://connectfourpontus-default-rtdb.europe-west1.firebasedatabase.app</string>
+  <string name="gcm_defaultSenderId" translatable="false">548745855239</string>
+  <string name="google_storage_bucket" translatable="false">connectfourpontus.appspot.com</string>
+  <string name="project_id" translatable="false">connectfourpontus</string>
+  <string name="google_api_key" translatable="false">AIzaSyDzZ0EjOWRpfPLcQyTHFEzV6yvay5R8u5c</string>
+  <string name="google_crash_reporting_api_key" translatable="false">AIzaSyDzZ0EjOWRpfPLcQyTHFEzV6yvay5R8u5c</string>
+  <string name="google_app_id" translatable="false">1:548745855239:android:1fdf0b53a81b807db8c5a2</string>
+  <string name="default_web_client_id" translatable="false">548745855239-m1f0pihar5c1o3jtq4odgeohjbp95f3q.apps.googleusercontent.com</string>
+</resources>
