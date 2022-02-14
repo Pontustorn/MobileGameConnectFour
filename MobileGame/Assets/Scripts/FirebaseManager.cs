@@ -1,18 +1,14 @@
-using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
 using Firebase;
 using Firebase.Auth;
 using Firebase.Database;
+using System.Collections;
 using TMPro;
-using UnityEngine.SceneManagement;
-using System.Globalization;
+using UnityEngine;
 using UnityEngine.UI;
 
 public class FirebaseManager : MonoBehaviour
 {
     private MenuHandler menuHandler;
-    private SpawnChipScript spc;
 
     [Header("Firebase")]
     public DependencyStatus dependencyStatus;
@@ -42,19 +38,15 @@ public class FirebaseManager : MonoBehaviour
     public GameObject scoreElement;
     public Transform scoreBoardContent;
 
+    public UserInfo userInfo;
 
-    string owner = "";
-
-    public Material mat;
-    public ChangeChip cc;
+    public delegate void SignInHandler();
+    public SignInHandler OnSignIn;
 
     private void Start()
     {
         menuHandler = GameObject.Find("MenuHandler").GetComponent<MenuHandler>();
-        spc = GameObject.Find("GameController").GetComponent<SpawnChipScript>();
     }
-
-    // Start is called before the first frame update
     private void Awake()
     {
         FirebaseApp.CheckAndFixDependenciesAsync().ContinueWith(task =>
@@ -70,56 +62,31 @@ public class FirebaseManager : MonoBehaviour
                 Debug.LogError("Could not resolve all Firebase dependencies");
             }
         });
-
-        
     }
-
-
     private void InitializeFirebase()
     {
         Debug.Log("Setting up Firebase Auth");
         auth = FirebaseAuth.DefaultInstance;
         DBreference = FirebaseDatabase.DefaultInstance.RootReference;
     }
-    // Update is called once per frame
     public void LoginButton()
     {
         StartCoroutine(Login(emailLoginField.text, passwordLoginField.text));
     }
-
     public void RegisterButton()
     {
         StartCoroutine(Register(emailRegisterField.text, passwordRegisterField.text, usernameRegisterField.text));
     }
-
-    public void StartGameButton()
-    {
-        StartCoroutine(CheckIfAvailableGame());
-    }
-
     public void SaveDataButton()
     {
         StartCoroutine(UpdateUsernameAuth(usernameField.text));
-        StartCoroutine(UpdateUsernameDatabase(usernameField.text));
-
-        StartCoroutine(UpdateUserWins(0));
-        StartCoroutine(UpdateUserLosses(0));
-        StartCoroutine(UpdateUserChipsPlaced(0));
-
+        UpdateUsernameDatabase(usernameField.text);
     }
-
-
-    public void Test()
-    {
-        
-    }
-
     public void ClearLoginField()
     {
         emailLoginField.text = "";
         passwordLoginField.text = "";
     }
-
     public void ClearRegisterField()
     {
         usernameRegisterField.text = "";
@@ -127,13 +94,13 @@ public class FirebaseManager : MonoBehaviour
         passwordRegisterField.text = "";
         passwordRegisterVerifyField.text = "";
     }
-
     public void SignOutButton()
     {
         auth.SignOut();
         menuHandler.Login();
         ClearLoginField();
         ClearRegisterField();
+        PlayerData.data = null;
     }
     private IEnumerator Login(string _email, string _password)
     {
@@ -171,25 +138,23 @@ public class FirebaseManager : MonoBehaviour
         }
         else
         {
+            OnSignIn?.Invoke();
             User = LoginTask.Result;
             Debug.LogFormat("User signed in successfully: {0} ({1})", User.DisplayName, User.Email);
             warningLoginText.text = "";
             usernameField.text = User.DisplayName;
-            StartCoroutine(LoadUserData());
             menuHandler.MainMenu();
             ClearLoginField();
             ClearRegisterField();
-            //StartCoroutine(checkIfUserIsPlaying());
         }
     }
-
     private IEnumerator Register(string _email, string _password, string _username)
     {
-        if(_username == "")
+        if (_username == "")
         {
             warningRegisterText.text = "Missing Username";
         }
-        
+
         else if (passwordRegisterField.text != passwordRegisterVerifyField.text)
         {
             warningRegisterText.text = "Password Does Not Match!";
@@ -201,7 +166,7 @@ public class FirebaseManager : MonoBehaviour
 
             yield return new WaitUntil(predicate: () => RegisterTask.IsCompleted);
 
-            if(RegisterTask.Exception != null)
+            if (RegisterTask.Exception != null)
             {
                 Debug.LogWarning(message: $"Failed to register task with {RegisterTask.Exception}");
                 FirebaseException firebaseEx = RegisterTask.Exception.GetBaseException() as FirebaseException;
@@ -235,7 +200,7 @@ public class FirebaseManager : MonoBehaviour
             {
                 User = RegisterTask.Result;
 
-                if(User != null)
+                if (User != null)
                 {
                     UserProfile profile = new UserProfile { DisplayName = _username };
 
@@ -243,7 +208,7 @@ public class FirebaseManager : MonoBehaviour
 
                     yield return new WaitUntil(predicate: () => ProfileTask.IsCompleted);
 
-                    if(ProfileTask.Exception != null)
+                    if (ProfileTask.Exception != null)
                     {
                         Debug.LogWarning(message: $"Failed to register task with {ProfileTask.Exception}");
                         FirebaseException firebaseEx = ProfileTask.Exception.GetBaseException() as FirebaseException;
@@ -252,21 +217,18 @@ public class FirebaseManager : MonoBehaviour
                     }
                     else
                     {
+                        OnSignIn?.Invoke();
                         usernameField.text = User.DisplayName;
                         menuHandler.MainMenu();
+                        SetupUser();
                         ClearLoginField();
                         ClearRegisterField();
-                        StartCoroutine(UpdateUserWins(0));
-                        StartCoroutine(UpdateUserLosses(0));
-                        StartCoroutine(UpdateUserChipsPlaced(0));
-                        StartCoroutine(UpdateUserPlaying("false"));
-                        StartCoroutine(UpdateUsernameDatabase(usernameField.text));
+
                     }
                 }
             }
         }
     }
-
     private IEnumerator UpdateUsernameAuth(string _username)
     {
         UserProfile profile = new UserProfile { DisplayName = _username };
@@ -275,7 +237,7 @@ public class FirebaseManager : MonoBehaviour
 
         yield return new WaitUntil(predicate: () => ProfileTask.IsCompleted);
 
-        if(ProfileTask.Exception != null)
+        if (ProfileTask.Exception != null)
         {
             Debug.LogWarning(message: $"Failed to register task with {ProfileTask.Exception}");
 
@@ -287,551 +249,28 @@ public class FirebaseManager : MonoBehaviour
         }
 
     }
-
-    private IEnumerator UpdateUsernameDatabase(string _username)
+    private void UpdateUsernameDatabase(string _username)
     {
-        var DBTask = DBreference.Child("users").Child(User.UserId).Child("username").SetValueAsync(_username);
+        PlayerData.data.username = _username;
 
-        yield return new WaitUntil(predicate: () => DBTask.IsCompleted);
-
-        if(DBTask.Exception != null)
-        {
-            Debug.LogWarning(message: $"Failed to register task with {DBTask.Exception}");
-        }
-        else
-        {
-            
-        }
+        PlayerData.SaveData();
     }
-
-    private IEnumerator UpdateUserWins(int _wins)
+    private void SetupUser()
     {
-        var DBTask = DBreference.Child("users").Child(User.UserId).Child("wins").SetValueAsync(_wins);
+        userInfo = new UserInfo();
+        userInfo.username = usernameField.text;
+        userInfo.wins = 0;
+        userInfo.losses = 0;
+        userInfo.chipsPlaced = 0;
+        userInfo.colorR = 1;
+        userInfo.colorG = 1;
+        userInfo.colorB = 1;
+        userInfo.image = 1;
 
-        yield return new WaitUntil(predicate: () => DBTask.IsCompleted);
+        string JsonString = JsonUtility.ToJson(userInfo);
 
-        if (DBTask.Exception != null)
-        {
-            Debug.LogWarning(message: $"Failed to register task with {DBTask.Exception}");
-        }
-        else
-        {
-            
-        }
+        SaveManager.Instance.SaveData("users/" + FirebaseAuth.DefaultInstance.CurrentUser.UserId, JsonString);
+
+        PlayerData.data = userInfo;
     }
-
-    private IEnumerator UpdateUserPlaying(string _playing)
-    {
-        var DBTask = DBreference.Child("users").Child(User.UserId).Child("playing").SetValueAsync(_playing);
-
-        yield return new WaitUntil(predicate: () => DBTask.IsCompleted);
-
-        if (DBTask.Exception != null)
-        {
-            Debug.LogWarning(message: $"Failed to register task with {DBTask.Exception}");
-        }
-        else
-        {
-            
-        }
-    }
-
-    private IEnumerator UpdateUserLosses(int _losses)
-    {
-        var DBTask = DBreference.Child("users").Child(User.UserId).Child("losses").SetValueAsync(_losses);
-
-        yield return new WaitUntil(predicate: () => DBTask.IsCompleted);
-
-        if (DBTask.Exception != null)
-        {
-            Debug.LogWarning(message: $"Failed to register task with {DBTask.Exception}");
-        }
-        else
-        {
-            //Username is updated.
-        }
-    }
-
-
-
-    private IEnumerator UpdateUserChipsPlaced(int _chipsplaced)
-    {
-        var DBTask = DBreference.Child("users").Child(User.UserId).Child("chipsPlaced").SetValueAsync(_chipsplaced);
-
-        yield return new WaitUntil(predicate: () => DBTask.IsCompleted);
-
-        if (DBTask.Exception != null)
-        {
-            Debug.LogWarning(message: $"Failed to register task with {DBTask.Exception}");
-        }
-        else
-        {
-            //Username is updated.
-        }
-    }
-
-    private IEnumerator LoadUserData()
-    {
-        var DBTask = DBreference.Child("users").Child(User.UserId).GetValueAsync();
-
-        yield return new WaitUntil(predicate: () => DBTask.IsCompleted);
-
-        if(DBTask.Exception != null)
-        {
-            Debug.LogWarning(message: $"Failed to register task with {DBTask.Exception}");
-        }
-        
-        else if(DBTask.Result.Value == null)
-        {
-            //No data exists.
-            wins.text = "";
-            losses.text = "";
-            chipsPlaced.text = "";
-        }
-
-        else
-        {
-            DataSnapshot snapshot = DBTask.Result;
-
-            wins.text = snapshot.Child("wins").Value.ToString();
-            losses.text = snapshot.Child("losses").Value.ToString();
-            chipsPlaced.text = snapshot.Child("chipsPlaced").Value.ToString();
-            
-
-            if(snapshot.Child("playing").Value.ToString() == "true")
-            {
-                menuHandler.ActivateGameScreen();
-                StartCoroutine(getOwner());
-            }
-
-
-        }
-
-    }
-
-   
-
-    private IEnumerator CreateGame()
-    {
-        var DBTask = DBreference.Child("games").Child(User.UserId).Child("player1").SetValueAsync(User.UserId);
-        
-
-        yield return new WaitUntil(predicate: () => DBTask.IsCompleted);
-
-        if (DBTask.Exception != null)
-        {
-            Debug.LogWarning(message: $"Failed to register task with {DBTask.Exception}");
-        }
-        else
-        {
-            var DBTask2 = DBreference.Child("games").Child(User.UserId).Child("player2").SetValueAsync("");
-            yield return new WaitUntil(predicate: () => DBTask2.IsCompleted);
-
-            if (DBTask2.Exception != null)
-            {
-                Debug.LogWarning(message: $"Failed to register task with {DBTask2.Exception}");
-            }
-            else
-            {
-                var DBTask3 = DBreference.Child("games").Child(User.UserId).Child("gameFull").SetValueAsync("false");
-                yield return new WaitUntil(predicate: () => DBTask3.IsCompleted);
-
-                if (DBTask3.Exception != null)
-                {
-                    Debug.LogWarning(message: $"Failed to register task with {DBTask3.Exception}");
-                }
-                else
-                {
-                    var DBTask4 = DBreference.Child("games").Child(User.UserId).Child("playerTurn").SetValueAsync(User.UserId);
-                    yield return new WaitUntil(predicate: () => DBTask4.IsCompleted);
-
-                    if (DBTask4.Exception != null)
-                    {
-                        Debug.LogWarning(message: $"Failed to register task with {DBTask4.Exception}");
-                    }
-                    else
-                    {
-                        owner = User.UserId;
-                    }
-                }
-            }
-        }
-    }
-
-    private IEnumerator AddPlayerToGame(string _userId, string _owner)
-    {
-        var DBTask = DBreference.Child("games").Child(_owner).Child("player2").SetValueAsync(_userId);
-
-        yield return new WaitUntil(predicate: () => DBTask.IsCompleted);
-
-        if (DBTask.Exception != null)
-        {
-            Debug.LogWarning(message: $"Failed to register task with {DBTask.Exception}");
-        }
-
-        else
-        {
-            var DBTask2 = DBreference.Child("games").Child(_owner).Child("gameFull").SetValueAsync("true");
-
-            yield return new WaitUntil(predicate: () => DBTask2.IsCompleted);
-
-            if (DBTask2.Exception != null)
-            {
-                Debug.LogWarning(message: $"Failed to register task with {DBTask2.Exception}");
-            }
-
-            else
-            {
-                var DBTask3 = DBreference.Child("users").Child(_owner).Child("playing").SetValueAsync("true");
-
-                yield return new WaitUntil(predicate: () => DBTask3.IsCompleted);
-
-                if (DBTask3.Exception != null)
-                {
-                    Debug.LogWarning(message: $"Failed to register task with {DBTask3.Exception}");
-                }
-
-                else
-                {
-                    var DBTask4 = DBreference.Child("users").Child(_userId).Child("playing").SetValueAsync("true");
-
-                    yield return new WaitUntil(predicate: () => DBTask4.IsCompleted);
-
-                    if (DBTask4.Exception != null)
-                    {
-                        Debug.LogWarning(message: $"Failed to register task with {DBTask4.Exception}");
-                    }
-                }
-            }
-        }
-    }
-
-    private IEnumerator CheckIfAvailableGame()
-    {
-        bool MatchHasNotBeenFound = false;
-        var DBTask = DBreference.Child("games").GetValueAsync();
-
-        yield return new WaitUntil(predicate: () => DBTask.IsCompleted);
-
-        if (DBTask.Exception != null)
-        {
-            Debug.LogWarning(message: $"Failed to register task with {DBTask.Exception}");
-        }
-
-        else if (DBTask.Result.Value == null)
-        {
-            StartCoroutine(CreateGame());
-
-            yield return new WaitForSeconds(4);
-            menuHandler.ActivateLoadingScreen();
-        }
-
-        else
-        {
-            DataSnapshot snapShot = DBTask.Result;
-
-
-
-            foreach(DataSnapshot childSnapShot in snapShot.Children)
-            {
-                if(childSnapShot.Child("gameFull").Value.ToString() == "false" && MatchHasNotBeenFound == false)
-                {
-                    owner = childSnapShot.Child("player1").Value.ToString();
-                    if (owner != User.UserId)
-                    {
-                        StartCoroutine(AddPlayerToGame(User.UserId, owner));
-                        MatchHasNotBeenFound = true;
-                        yield return new WaitForSeconds(4);
-                        menuHandler.ActivateGameScreen();
-                    }
-
-                    else
-                    {
-                        StartCoroutine(CreateGame());
-                    }
-                }
-            }
-
-            if(MatchHasNotBeenFound == false)
-            {
-                StartCoroutine(CreateGame());
-                yield return new WaitForSeconds(4);
-                menuHandler.ActivateLoadingScreen();
-            }
-        }
-    }
-
-    public IEnumerator playerPlayedChip(string column, string placement)
-    {
-        string player2 = "";
-        string playerturn = "";
-        var DBTask = DBreference.Child("games").Child(owner).GetValueAsync();
-
-        yield return new WaitUntil(predicate: () => DBTask.IsCompleted);
-
-        if (DBTask.Exception != null)
-        {
-            Debug.LogWarning(message: $"Failed to register task with {DBTask.Exception}");
-        }
-
-        else
-        {
-
-            DataSnapshot snapShot = DBTask.Result;
-
-           
-                
-                    player2 = snapShot.Child("player2").Value.ToString();
-                    playerturn = snapShot.Child("playerTurn").Value.ToString();
-                    
-                 
-                
-
-                if (owner != null)
-                {
-
-                    var DBTask2 = DBreference.Child("games").Child(owner).Child("column").Child(placement).SetValueAsync(column);
-
-                    yield return new WaitUntil(predicate: () => DBTask2.IsCompleted);
-
-                    if (DBTask2.Exception != null)
-                    {
-                        Debug.LogWarning(message: $"Failed to register task with {DBTask2.Exception}");
-                    }
-
-                    else
-                    {
-                        if (player2 == User.UserId)
-                        {
-
-                            var DBTask3 = DBreference.Child("games").Child(owner).Child("playerTurn").SetValueAsync(owner);
-
-                            yield return new WaitUntil(predicate: () => DBTask3.IsCompleted);
-
-                            if (DBTask3.Exception != null)
-                            {
-                                Debug.LogWarning(message: $"Failed to register task with {DBTask3.Exception}");
-                            }
-
-                            else
-                            {
-
-                            }
-                        }
-
-                        else
-                        {
-                            var DBTask3 = DBreference.Child("games").Child(User.UserId).Child("playerTurn").SetValueAsync(player2);
-
-                            yield return new WaitUntil(predicate: () => DBTask3.IsCompleted);
-
-                            if (DBTask3.Exception != null)
-                            {
-                                Debug.LogWarning(message: $"Failed to register task with {DBTask3.Exception}");
-                            }
-
-                            else
-                            {
-
-                            }
-                        }
-
-
-                    }
-                }
-
-            }
-    }
-
-    public IEnumerator CheckWhosTurnItIs(System.Action<bool> callback)
-    {
-
-        var DBTask = DBreference.Child("games").Child(owner).GetValueAsync();
-
-        yield return new WaitUntil(predicate: () => DBTask.IsCompleted);
-
-        if (DBTask.Exception != null)
-        {
-            Debug.LogWarning(message: $"Failed to register task with {DBTask.Exception}");
-        }
-
-        else
-        {
-            DataSnapshot snapShot = DBTask.Result;
-
-            
-                    if (snapShot.Child("playerTurn").Value.ToString() == User.UserId)
-                    {
-                        callback(true);
-                        yield return null;
-                    }
-                }
-            
-        
-    }
-
-    public IEnumerator LoadChips(System.Action<List<int>> callback)
-    {
-
-        yield return new WaitForSeconds(4f);
-        var DBTask2 = DBreference.Child("games").Child(owner).Child("column").GetValueAsync();
-        List<int> intList = new List<int>();
-        string placementString = "";
-
-        yield return new WaitUntil(predicate: () => DBTask2.IsCompleted);
-
-        if (DBTask2.Exception != null)
-        {
-            Debug.LogWarning(message: $"Failed to register task with {DBTask2.Exception}");
-        }
-
-        else
-        {
-            
-                
-                    DataSnapshot snapShot2 = DBTask2.Result;
-
-                    foreach (DataSnapshot childSnapShot2 in snapShot2.Children)
-                    {
-
-                    placementString = childSnapShot2.Value.ToString();
-                    intList.Add(int.Parse(placementString));
-                    }
-
-            
-            callback(intList);
-            yield return null;
-        }
-    }
-
-    public IEnumerator ReturnLatestChip(System.Action<int> callback)
-    {
-        int returnValue = 0;
-        var DBTask2 = DBreference.Child("games").Child(owner).Child("column").GetValueAsync();
-
-        yield return new WaitUntil(predicate: () => DBTask2.IsCompleted);
-
-        if (DBTask2.Exception != null)
-        {
-            Debug.LogWarning(message: $"Failed to register task with {DBTask2.Exception}");
-        }
-
-        else
-        {
-
-                DataSnapshot snapShot2 = DBTask2.Result;
-
-                foreach (DataSnapshot childSnapShot2 in snapShot2.Children)
-                {
-                    returnValue++;
-                }
-
-            callback(returnValue);
-            yield return null;
-        }
-    }
-
-    public IEnumerator WhichPlayerAmI(System.Action<bool> callback)
-    {
-        bool returnValue = false;
-        bool MatchHasBeenFound = false;
-        var DBTask = DBreference.Child("games").GetValueAsync();
-
-        yield return new WaitUntil(predicate: () => DBTask.IsCompleted);
-
-        if (DBTask.Exception != null)
-        {
-            Debug.LogWarning(message: $"Failed to register task with {DBTask.Exception}");
-        }
-
-        else
-        {
-            DataSnapshot snapShot = DBTask.Result;
-
-            foreach (DataSnapshot childSnapShot in snapShot.Children)
-            {
-                if (childSnapShot.Child("player1").Value.ToString() == User.UserId && MatchHasBeenFound == false)
-                {
-                    returnValue = true;
-                }
-
-                else if(childSnapShot.Child("player2").Value.ToString() == User.UserId && MatchHasBeenFound == false)
-                {
-                    returnValue = false;
-                }
-            }
-
-            callback(returnValue);
-            yield return null;
-        }
-    }
-
-
-
-    public IEnumerator getOwner()
-    {
-        bool MatchHasBeenFound = false;
-        var DBTask = DBreference.Child("games").GetValueAsync();
-
-        yield return new WaitUntil(predicate: () => DBTask.IsCompleted);
-
-        if (DBTask.Exception != null)
-        {
-            Debug.LogWarning(message: $"Failed to register task with {DBTask.Exception}");
-        }
-
-        else
-        {
-
-            DataSnapshot snapShot = DBTask.Result;
-
-            foreach (DataSnapshot childSnapShot in snapShot.Children)
-            {
-                if (childSnapShot.Child("player1").Value.ToString() == User.UserId && MatchHasBeenFound == false || childSnapShot.Child("player2").Value.ToString() == User.UserId && MatchHasBeenFound == false)
-                {
-                    owner = childSnapShot.Child("player1").Value.ToString();
-                    Debug.Log(owner);
-                    MatchHasBeenFound = true;
-                }
-            }
-        }
-    }
-
-    //void HandleChildAdded(object sender, ChildChangedEventArgs args)
-    //{
-    //    if (args.DatabaseError != null)
-    //    {
-    //        Debug.LogError(args.DatabaseError.Message);
-
-
-    //        return;
-    //    }
-
-    //        StartCoroutine(ReturnLatestChip((myReturnValue) => {
-
-    //            spc.SpawnChipOnChange(myReturnValue);
-
-    //        }));
-
-
-
-    //    // Do something with the data in args.Snapshot
-    //}
-
-    //public void setupListener()
-    //{
-
-    //    StartCoroutine(getOwner((myReturnValue) => {
-    //        owner = myReturnValue;
-    //        Debug.Log(owner);
-    //    }));
-
-
-
-    //    var dbref = DBreference.Child("games").Child(owner).Child("column");
-
-    //    dbref.ChildAdded += HandleChildAdded;
-
-
-    //}
 }

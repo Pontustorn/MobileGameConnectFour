@@ -53,4 +53,25 @@ public class SaveManager : MonoBehaviour
             onSaveDelegate?.Invoke();
         });
     }
+
+    public void LoadDataMultiple(string path, OnLoadedDelegate onLoadedDelegate)
+    {
+        db.RootReference.Child(path).GetValueAsync().ContinueWithOnMainThread(task =>
+        {
+            string jsonData = task.Result.GetRawJsonValue();
+
+            if (task.Exception != null)
+                Debug.LogWarning(task.Exception);
+
+            foreach (var item in task.Result.Children)
+            {
+                onLoadedDelegate(item.GetRawJsonValue());
+            }
+        });
+    }
+
+    internal string GetKey(string path)
+    {
+        return db.RootReference.Child(path).Push().Key;
+    }
 }

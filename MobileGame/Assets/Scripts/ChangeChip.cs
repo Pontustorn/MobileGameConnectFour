@@ -5,8 +5,6 @@ using UnityEngine.UI;
 
 public class ChangeChip : MonoBehaviour
 {
-
-    Vector3 mousePos;
     Vector3 newMousePos;
 
     public Slider sliderRed;
@@ -23,13 +21,13 @@ public class ChangeChip : MonoBehaviour
 
     public int changeCounter = 1;
 
-    ChipInfo chipInfo;
+    UserInfo userInfo;
     
 
     // Start is called before the first frame update
     void Start()
     {
-        chipInfo = new ChipInfo();
+        userInfo = new UserInfo();
         sr = usedImage.GetComponent<SpriteRenderer>();
     }
 
@@ -74,39 +72,21 @@ public class ChangeChip : MonoBehaviour
         }
         sr.sprite = imageList[changeCounter];
     }
-
-    public void SetSliders(float r, float g, float b)
-    {
-        sliderRed.value = r;
-        sliderGreen.value = g;
-        sliderBlue.value = b;
-    }
-
     public void UpdateValues()
     {
 
-        chipInfo.colorR = sliderRed.value;
-        chipInfo.colorG = sliderGreen.value;
-        chipInfo.colorB = sliderBlue.value;
+        PlayerData.data.colorR = sliderRed.value;
+        PlayerData.data.colorG = sliderGreen.value;
+        PlayerData.data.colorB = sliderBlue.value;
 
-        string jsonString = JsonUtility.ToJson(chipInfo);
-
-        SaveManager.Instance.SaveData("users/" + Firebase.Auth.FirebaseAuth.DefaultInstance.CurrentUser.UserId + "/chip", jsonString);
+        PlayerData.SaveData();
     }
 
-    public void LoadValues()
+    public void ChipDataLoaded()
     {
-        SaveManager.Instance.LoadData("users/" + Firebase.Auth.FirebaseAuth.DefaultInstance.CurrentUser.UserId + "/chip", UserDataLoaded);
-    }
-
-    public void UserDataLoaded(string jsonData)
-    {
-        var chipInfo = JsonUtility.FromJson<ChipInfo>(jsonData);
-
-        sliderRed.value = chipInfo.colorR;
-        sliderGreen.value = chipInfo.colorG;
-        sliderBlue.value = chipInfo.colorB;
-
+        sliderRed.value = PlayerData.data.colorR;
+        sliderGreen.value = PlayerData.data.colorG;
+        sliderBlue.value = PlayerData.data.colorB;
     }
 
 

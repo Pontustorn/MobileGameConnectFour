@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using Firebase.Auth;
 
 public class MenuHandler : MonoBehaviour
 {
@@ -10,13 +11,13 @@ public class MenuHandler : MonoBehaviour
     public GameObject mainMenuScreen;
     public GameObject optionsScreen;
     public GameObject scoreBoardScreen;
-    public GameObject gameScreen;
     public GameObject loadingScreen;
     public GameObject loadingOverlay;
     public GameObject menuGameBoard;
     public GameObject pauseScreen;
     public GameObject gameUI;
     public GameObject pimpMyChip;
+    public GameObject myGamesScreen;
 
     public GameObject testChip;
 
@@ -24,7 +25,11 @@ public class MenuHandler : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
-
+        if(FirebaseAuth.DefaultInstance.CurrentUser.UserId != null)
+        {
+            ClearScreen();
+            mainMenuScreen.SetActive(true);
+        }
     }
 
     public void LoadScene(string scene)
@@ -36,12 +41,12 @@ public class MenuHandler : MonoBehaviour
     {
         loginScreen.SetActive(false);
         loadingScreen.SetActive(false);
-        gameScreen.SetActive(false);
         mainMenuScreen.SetActive(false);
         registerScreen.SetActive(false);
         scoreBoardScreen.SetActive(false);
         optionsScreen.SetActive(false);
         pauseScreen.SetActive(false);
+        myGamesScreen.SetActive(false);
     }
     public void Login()
     {
@@ -78,24 +83,6 @@ public class MenuHandler : MonoBehaviour
         ClearScreen();
         loadingScreen.SetActive(true);
     }
-
-    public void ActivateGameScreen()
-    {
-        ClearScreen();
-        menuGameBoard.SetActive(false);
-        gameScreen.SetActive(true);
-        gameUI.SetActive(true);
-    }
-
-    public void DeactivateGameScreen()
-    {
-        ClearScreen();
-        menuGameBoard.SetActive(true);
-        gameScreen.SetActive(false);
-        gameUI.SetActive(false);
-        mainMenuScreen.SetActive(true);
-    }
-
 
     public void ActivateLoadingGameUI()
     {
@@ -138,6 +125,12 @@ public class MenuHandler : MonoBehaviour
         optionsScreen.SetActive(true);
         pimpMyChip.SetActive(false);
         testChip.SetActive(false);
+    }
+
+    public void ActivateMyGameScreen()
+    {
+        ClearScreen();
+        myGamesScreen.SetActive(true);
     }
 
 }

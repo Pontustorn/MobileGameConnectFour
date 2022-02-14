@@ -35,6 +35,7 @@ public class SpawnChipsMenu : MonoBehaviour
                 shouldSpawnYellow = true;
                 break;
         }
-        
+
+        Physics.gravity = new Vector3(0, -75.0F, 0);
     }
 }
