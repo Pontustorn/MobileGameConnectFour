@@ -37,8 +37,18 @@ public class GameController : MonoBehaviour
 
     public void SetPlayerNames()
     {
-        player1.text = GameManager.matchInfo.players[0].username;
-        player2.text = GameManager.matchInfo.players[1].username;
+        if (GameManager.matchInfo.players[0].username == PlayerData.data.username)
+        {
+            player1.text = GameManager.matchInfo.players[0].username;
+            player2.text = GameManager.matchInfo.players[1].username;
+        }
+        
+        else
+        {
+            player1.text = GameManager.matchInfo.players[1].username;
+            player2.text = GameManager.matchInfo.players[0].username;
+        }
+        
     }
 
     public void SetPlayerChips()

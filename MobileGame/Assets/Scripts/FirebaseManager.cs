@@ -1,10 +1,11 @@
 using Firebase;
 using Firebase.Auth;
 using Firebase.Database;
+using Firebase.Extensions;
 using System.Collections;
 using TMPro;
 using UnityEngine;
-using UnityEngine.UI;
+
 
 public class FirebaseManager : MonoBehaviour
 {
@@ -45,11 +46,8 @@ public class FirebaseManager : MonoBehaviour
 
     private void Start()
     {
-        menuHandler = GameObject.Find("MenuHandler").GetComponent<MenuHandler>();
-    }
-    private void Awake()
-    {
-        FirebaseApp.CheckAndFixDependenciesAsync().ContinueWith(task =>
+        
+        FirebaseApp.CheckAndFixDependenciesAsync().ContinueWithOnMainThread(task =>
         {
             dependencyStatus = task.Result;
             if (dependencyStatus == DependencyStatus.Available)
@@ -61,8 +59,16 @@ public class FirebaseManager : MonoBehaviour
             {
                 Debug.LogError("Could not resolve all Firebase dependencies");
             }
+            menuHandler = FindObjectOfType<MenuHandler>();
+            menuHandler.MyStart();
+            GetComponent<PlayerData>().MyStart();
         });
+
+        
+
+
     }
+
     private void InitializeFirebase()
     {
         Debug.Log("Setting up Firebase Auth");
@@ -272,5 +278,13 @@ public class FirebaseManager : MonoBehaviour
         SaveManager.Instance.SaveData("users/" + FirebaseAuth.DefaultInstance.CurrentUser.UserId, JsonString);
 
         PlayerData.data = userInfo;
+    }
+
+    public void SetUserData()
+    {
+        wins.text = PlayerData.data.wins.ToString();
+        losses.text = PlayerData.data.losses.ToString();
+        chipsPlaced.text = PlayerData.data.chipsPlaced.ToString();
+        usernameField.text = PlayerData.data.username;
     }
 }

@@ -4,6 +4,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using Firebase.Auth;
 using TMPro;
+using Firebase.Database;
 
 public class GameManager : MonoBehaviour
 {
@@ -18,63 +19,119 @@ public class GameManager : MonoBehaviour
     public Button buttonPrefab;
     private MenuHandler menuHandler;
 
+    public TMP_Text infoText;
+    public TMP_Text listText;
+
+    public GameObject foundGameWindow;
+    public Button foundGameButton;
+
     // Start is called before the first frame update
     void Start()
     {
         matchInfo = new MatchInfo();
+        matchInfo.players = null;
         menuHandler = GameObject.Find("MenuHandler").GetComponent<MenuHandler>();
 
     }
+
+    private void Awake()
+    {
+        if (_instance == null)
+        {
+            _instance = this;
+            DontDestroyOnLoad(gameObject);
+        }
+        else
+        {
+            Destroy(this.gameObject);
+        }
+    }
+
+    private void Update()
+    {
+        if (publicGamesListHolder != null)
+        {
+            if (publicGamesListHolder.childCount == 0)
+            {
+                infoText.text = "If you created a game, were still looking for an opponent";
+            }
+
+            else
+            {
+                infoText.text = "";
+            }
+        }
+    }
     public void CreateGame()
     {
-        matchInfo.players ??= new List<UserInfo>();
+        
+        if (PlayerData.data.activeGames.Count < 5)
+        {
+            SaveManager.Instance.LoadData("users/" + FirebaseAuth.DefaultInstance.CurrentUser.UserId, UpdateActiveGames);
+            matchInfo.players ??= new List<UserInfo>();
+            matchInfo.chipPlacements ??= new List<int>();
+            string gameid = SaveManager.Instance.GetKey("games/");
+            matchInfo.matchid = gameid;
+            matchInfo.displayName = PlayerData.data.username;
+            matchInfo.players.Add(PlayerData.data);
+            matchInfo.full = false;
+            matchInfo.playerTurn = "";
+            matchInfo.player1 = FirebaseAuth.DefaultInstance.CurrentUser.UserId;
 
-        string gameid = SaveManager.Instance.GetKey("games/");
-        matchInfo.matchid = gameid;
-        matchInfo.displayName = PlayerData.data.username;
-        matchInfo.players.Add(PlayerData.data);
-        matchInfo.full = false;
-        matchInfo.playerTurn = "";
-        matchInfo.player1 = FirebaseAuth.DefaultInstance.CurrentUser.UserId;
+            PlayerData.data.activeGames ??= new List<string>();
 
-        PlayerData.data.activeGames ??= new List<string>();
+            PlayerData.data.activeGames.Add(gameid);
 
-        PlayerData.data.activeGames.Add(gameid);
+            string jsonString = JsonUtility.ToJson(matchInfo);
 
-        string jsonString = JsonUtility.ToJson(matchInfo);
+            PlayerData.SaveData();
 
-        PlayerData.SaveData();
+            //Subscribe("games/" + gameid);
 
-        SaveManager.Instance.SaveData("games/" + gameid, jsonString);
+            SaveManager.Instance.SaveData("games/" + gameid, jsonString);
+
+            
+
+            foundGameWindow.SetActive(false);
+        }
+
+        else
+        {
+            Debug.Log("Please Finish Your Games Noob");
+        }
     }
     public void JoinGame(MatchInfo MatchInfo)
     {
-        
-        matchInfo.displayName = MatchInfo.displayName;
-        matchInfo.matchid = MatchInfo.matchid;
+        if (PlayerData.data.activeGames.Count < 5)
+        {
+            PlayerData.data.activeGames ??= new List<string>();
 
-        UserInfo userInfo = PlayerData.data;
+            PlayerData.data.activeGames.Add(MatchInfo.matchid);
 
-        matchInfo.players.Add(userInfo);
-        matchInfo.full = true;
-        matchInfo.playerTurn = FirebaseAuth.DefaultInstance.CurrentUser.UserId;
-        matchInfo.player2 = FirebaseAuth.DefaultInstance.CurrentUser.UserId;
+            MatchInfo.players.Add(PlayerData.data);
+            MatchInfo.full = true;
+            MatchInfo.playerTurn = FirebaseAuth.DefaultInstance.CurrentUser.UserId;
+            MatchInfo.player2 = FirebaseAuth.DefaultInstance.CurrentUser.UserId;
 
-        PlayerData.data.activeGames ??= new List<string>();
+            string jsonString = JsonUtility.ToJson(MatchInfo);
 
-        PlayerData.data.activeGames.Add(matchInfo.matchid);
+            PlayerData.SaveData();
 
-        string jsonString = JsonUtility.ToJson(matchInfo);
+            SaveManager.Instance.SaveData("games/" + MatchInfo.matchid, jsonString);
 
-        PlayerData.SaveData();
+            matchInfo = MatchInfo;
+            menuHandler.LoadScene("GameScene");
+        }
 
-        SaveManager.Instance.SaveData("games/" + matchInfo.matchid, jsonString);
-
-
-        menuHandler.LoadScene("GameScene");
+        else
+        {
+            Debug.Log("Please Finish Your Games Noob");
+        }
     }
     public void ListGames()
     {
+        listText.text = "Currently listing new games";
+
         Debug.Log("Listing Games");
 
         foreach (Transform child in publicGamesListHolder)
@@ -98,6 +155,8 @@ public class GameManager : MonoBehaviour
     }
     public void ListMyGames()
     {
+        listText.text = "Currently listing ongoing games";
+
         Debug.Log("Listing Games");
 
         foreach (Transform child in publicGamesListHolder)
@@ -115,13 +174,44 @@ public class GameManager : MonoBehaviour
             newButton.GetComponentInChildren<TextMeshProUGUI>().text = matchInfo.displayName + "'s game";
             newButton.onClick.AddListener(() => JoinMyGame(matchInfo));
         }
-
-        
     }
     public void JoinMyGame(MatchInfo newMatchInfo)
     {
         matchInfo = newMatchInfo;
 
         menuHandler.LoadScene("GameScene");
+    }
+
+    //public void Subscribe(string id)
+    //{
+    //    FirebaseDatabase.DefaultInstance.GetReference(id).ValueChanged += HandleValueChanged;
+    //}
+
+    //void HandleValueChanged(object sender, ValueChangedEventArgs args)
+    //{
+    //    if (args.DatabaseError != null)
+    //    {
+    //        Debug.LogError(args.DatabaseError.Message);
+    //        return;
+    //    }
+    //    //update our game info
+    //    MatchInfo updatedGame = JsonUtility.FromJson<MatchInfo>(args.Snapshot.GetRawJsonValue());
+
+    //    if (updatedGame.player2 != "")
+    //    {
+    //        ToggleJoinWindow(updatedGame);
+    //    }
+    //    //run the game with the new information
+    //}
+
+    //public void ToggleJoinWindow(MatchInfo matchInfo)
+    //{
+    //    foundGameWindow.SetActive(true);
+    //    foundGameButton.onClick.AddListener(() => JoinMyGame(matchInfo));
+    //}
+
+    void UpdateActiveGames(string json)
+    {
+        PlayerData.data = JsonUtility.FromJson<UserInfo>(json);
     }
 }

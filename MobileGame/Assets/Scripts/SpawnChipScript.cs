@@ -10,17 +10,25 @@ public class SpawnChipScript : MonoBehaviour
     public bool playerOneTurn = true;
     public int placement = 0;
     public GameObject gameBoard;
+    public GameController gc;
     public MenuHandler mh;
     int heightOfBoard = 6;
     int lengthOfBoard = 7;
+    int chipCounter = 0;
     public GameObject[] spawnLoc;
     bool switchChip;
     int[,] boardState;
     MatchInfo matchInfo;
+    MatchInfo newMatchInfo;
+    public GameObject feedbackController;
+
     // Start is called before the first frame update
     void Start()
     {
-        
+        gc = GameObject.Find("GameController").GetComponent<GameController>();
+
+
+        chipCounter = 0;
 
         boardState = new int[lengthOfBoard, heightOfBoard];
 
@@ -30,7 +38,7 @@ public class SpawnChipScript : MonoBehaviour
 
         StartCoroutine(LoadChips());
 
-        if(matchInfo.player1 == Firebase.Auth.FirebaseAuth.DefaultInstance.CurrentUser.UserId)
+        if (matchInfo.player1 == Firebase.Auth.FirebaseAuth.DefaultInstance.CurrentUser.UserId)
         {
             switchChip = false;
         }
@@ -46,6 +54,16 @@ public class SpawnChipScript : MonoBehaviour
     void Update()
     {
         Physics.gravity = new Vector3(0, -75.0F, 0);
+
+        if (newMatchInfo != null)
+        {
+            if (newMatchInfo.chipPlacements.Count > matchInfo.chipPlacements.Count)
+            {
+                int latestChip = newMatchInfo.chipPlacements.Count - 1;
+                SpawnChipOnChange(newMatchInfo.chipPlacements[latestChip]);
+                matchInfo = newMatchInfo;
+            }
+        }
     }
 
 
@@ -53,41 +71,64 @@ public class SpawnChipScript : MonoBehaviour
     {
         if (matchInfo.playerTurn == Firebase.Auth.FirebaseAuth.DefaultInstance.CurrentUser.UserId)
         {
+            feedbackController.GetComponent<PlayerFeedBackScript>().randomTextFeedback();
+
+            matchInfo.chipPlacements ??= new List<int>();
+
+            matchInfo.chipPlacements.Add(column);
+
             if (matchInfo.player1 == matchInfo.playerTurn)
             {
-                matchInfo.chipPlacements ??= new List<int>();
-
-                matchInfo.chipPlacements.Add(column);
+                chipCounter++;
                 matchInfo.playerTurn = matchInfo.player2;
+                UpdateBoardState(column, 1);
 
-                UpdateBoardState(column);
-
-                string jsonString2 = JsonUtility.ToJson(matchInfo);
-
-                SaveManager.Instance.SaveData("games/" + matchInfo.matchid, jsonString2);
-
-                Instantiate(chip, spawnLoc[column].transform.position, transform.rotation * Quaternion.Euler(0f, 90, 90f));
             }
-
             else
             {
-                matchInfo.chipPlacements ??= new List<int>();
-
-                matchInfo.chipPlacements.Add(column);
+                chipCounter++;
                 matchInfo.playerTurn = matchInfo.player1;
-
-                string jsonString2 = JsonUtility.ToJson(matchInfo);
-
-                UpdateBoardState(column);
-
-                SaveManager.Instance.SaveData("games/" + matchInfo.matchid, jsonString2);
-
-                Instantiate(chip, spawnLoc[column].transform.position, transform.rotation * Quaternion.Euler(0f, 90, 90f));
+                UpdateBoardState(column, 2);
             }
+
+            
+
+            Instantiate(chip, spawnLoc[column].transform.position, transform.rotation * Quaternion.Euler(0f, 90, 90f));
+
+            if(DidIWin(1))
+            {
+                if (matchInfo.player1 == Firebase.Auth.FirebaseAuth.DefaultInstance.CurrentUser.UserId)
+                {
+                    PlayerData.data.wins = PlayerData.data.wins + 1;
+                    PlayerData.data.chipsPlaced = PlayerData.data.chipsPlaced + chipCounter;
+                    PlayerData.SaveData();
+                    matchInfo.playerTurn = "PlayerOneWon";
+                    StartCoroutine(feedbackController.GetComponent<PlayerFeedBackScript>().PlayerWin(0));
+                }
+                
+            }
+
+            if (DidIWin(2))
+            {
+                if (matchInfo.player2 == Firebase.Auth.FirebaseAuth.DefaultInstance.CurrentUser.UserId)
+                {
+                    PlayerData.data.wins = PlayerData.data.wins + 1;
+                    PlayerData.data.chipsPlaced = PlayerData.data.chipsPlaced + chipCounter;
+                    PlayerData.SaveData();
+                    matchInfo.playerTurn = "PlayerTwoWon";
+                    StartCoroutine(feedbackController.GetComponent<PlayerFeedBackScript>().PlayerWin(1));
+                }
+                
+            }
+
+            string jsonString2 = JsonUtility.ToJson(matchInfo);
+
+            SaveManager.Instance.SaveData("games/" + matchInfo.matchid, jsonString2);
         }
+        
     }
 
-   
+
 
     public IEnumerator LoadChips()
     {
@@ -99,14 +140,14 @@ public class SpawnChipScript : MonoBehaviour
                 switch (switchChip)
                 {
                     case true:
-
-                        UpdateBoardState(chip3);
+                        chipCounter++;
                         Instantiate(chip, spawnLoc[chip3].transform.position, transform.rotation * Quaternion.Euler(0f, 90, 90f));
+                        UpdateBoardState(chip3, 1);
                         switchChip = false;
                         break;
                     default:
-                        UpdateBoardState(chip3);
                         Instantiate(chip2, spawnLoc[chip3].transform.position, transform.rotation * Quaternion.Euler(0f, 90, 90f));
+                        UpdateBoardState(chip3, 2);
                         switchChip = true;
                         break;
                 }
@@ -123,26 +164,41 @@ public class SpawnChipScript : MonoBehaviour
     public void SpawnChipOnChange(int column)
     {
         Instantiate(chip2, spawnLoc[column].transform.position, transform.rotation * Quaternion.Euler(0f, 90, 90f));
+
+        if(matchInfo.player1 == Firebase.Auth.FirebaseAuth.DefaultInstance.CurrentUser.UserId)
+        {
+            UpdateBoardState(column, 2);
+        }
+
+        else
+        {
+            UpdateBoardState(column, 1);
+        }
+
+        if (DidIWin(1))
+        {
+            StartCoroutine(feedbackController.GetComponent<PlayerFeedBackScript>().PlayerWin(0));
+        }
+
+        if (DidIWin(2))
+        {
+            StartCoroutine(feedbackController.GetComponent<PlayerFeedBackScript>().PlayerWin(1));
+        }
     }
 
-
-
-
-        bool UpdateBoardState(int column)
+        bool UpdateBoardState(int column, int playerNumber)
         {
             for (int row = 0; row < heightOfBoard; row++)
             {
                 if (boardState[column, row] == 0)
                 {
-                    if (playerOneTurn)
+                    if (playerNumber == 1)
                     {
                         boardState[column, row] = 1;
-                        playerOneTurn = false;
                     }
                     else
                     {
                         boardState[column, row] = 2;
-                        playerOneTurn = true;
                 }
                     return true;
                 }
@@ -165,7 +221,7 @@ public class SpawnChipScript : MonoBehaviour
             }
 
             //Vertical
-            for (int x = 0; x < lengthOfBoard; x++)
+            for (int x = 0; x < lengthOfBoard - 3; x++)
             {
                 for (int y = 0; y < heightOfBoard - 3; y++)
                 {
@@ -177,7 +233,7 @@ public class SpawnChipScript : MonoBehaviour
             }
 
             //Diogonally
-            for (int x = 0; x < lengthOfBoard - 3; x++)
+            for (int x = 0; x < lengthOfBoard; x++)
             {
                 for (int y = 0; y < heightOfBoard - 3; y++)
                 {
@@ -200,6 +256,7 @@ public class SpawnChipScript : MonoBehaviour
                 }
             }
             return false;
+
         }
 
     public void Subscribe(string id)
@@ -214,20 +271,33 @@ public class SpawnChipScript : MonoBehaviour
             Debug.LogError(args.DatabaseError.Message);
             return;
         }
-
-        // Do something with the data in args.Snapshot
-        Debug.Log("Value has changed: " + args.Snapshot.GetRawJsonValue());
-
         //update our game info
         MatchInfo updatedGame = JsonUtility.FromJson<MatchInfo>(args.Snapshot.GetRawJsonValue());
 
+        newMatchInfo = updatedGame;
 
+        if (matchInfo.playerTurn == "PlayerOneWon")
+        {
+            if(matchInfo.player2 == Firebase.Auth.FirebaseAuth.DefaultInstance.CurrentUser.UserId)
+            {
+                StartCoroutine(feedbackController.GetComponent<PlayerFeedBackScript>().PlayerWin(0));
+                PlayerData.data.losses = PlayerData.data.losses + 1;
+                PlayerData.data.chipsPlaced = PlayerData.data.chipsPlaced + chipCounter;
+                PlayerData.SaveData();
+            }
+        }
+
+        if (matchInfo.playerTurn == "PlayerTwoWon")
+        {
+            if (matchInfo.player1 == Firebase.Auth.FirebaseAuth.DefaultInstance.CurrentUser.UserId)
+            {
+                StartCoroutine(feedbackController.GetComponent<PlayerFeedBackScript>().PlayerWin(1));
+                PlayerData.data.losses = PlayerData.data.losses + 1;
+                PlayerData.data.chipsPlaced = PlayerData.data.chipsPlaced + chipCounter;
+                PlayerData.SaveData();
+            }
+        }
         //run the game with the new information
-        Debug.Log(updatedGame.chipPlacements);
-
-        int listLength = updatedGame.chipPlacements.Count - 1;
-
-        SpawnChipOnChange(updatedGame.chipPlacements[listLength]);
     }
 }
 

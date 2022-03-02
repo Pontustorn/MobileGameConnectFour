@@ -11,6 +11,14 @@ PrefabInstance:
       propertyPath: m_Name
       value: MenuChip
       objectReference: {fileID: 0}
+    - target: {fileID: 3882046671895936404, guid: ab64dde260a985641a081a27c0112dd0, type: 3}
+      propertyPath: m_UseGravity
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 3882046671895936404, guid: ab64dde260a985641a081a27c0112dd0, type: 3}
+      propertyPath: m_IsKinematic
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 3882046671895936405, guid: ab64dde260a985641a081a27c0112dd0, type: 3}
       propertyPath: m_Materials.Array.data[0]
       value: 

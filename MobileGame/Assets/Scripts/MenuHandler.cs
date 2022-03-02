@@ -23,15 +23,21 @@ public class MenuHandler : MonoBehaviour
 
     bool pause = true;
     // Start is called before the first frame update
-    void Start()
+    public void MyStart()
     {
-        if(FirebaseAuth.DefaultInstance.CurrentUser.UserId != null)
-        {
-            ClearScreen();
-            mainMenuScreen.SetActive(true);
-        }
+
+            if (FirebaseAuth.DefaultInstance.CurrentUser.UserId != null)
+            {
+                ClearScreen();
+                mainMenuScreen.SetActive(true);
+            }
+
     }
 
+    void Update()
+    {
+        Physics.gravity = new Vector3(0, -25.0F, 0);
+    }
     public void LoadScene(string scene)
     {
         SceneManager.LoadScene(scene);
